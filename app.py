@@ -1,4 +1,5 @@
 from flask import Flask
+from infer import model_answer
 
 app = Flask(__name__)
 
@@ -9,5 +10,5 @@ def hello_world():
 @app.route("/qa/<string:question>")
 def qa(question):
     return {
-        "answer": None,
+        "answer": model_answer(question),
     }
