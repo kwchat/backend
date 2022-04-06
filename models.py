@@ -36,10 +36,8 @@ text_classifier = tf.keras.Sequential([
 # define a dialog model
 dialog_model = tf.keras.Sequential([], 'dialog-model')
 
-
 # define a document retriever
 docRetriever = tf.keras.Sequential([], 'doc-retriever')
-
 
 # define a document reader
 docReader = tf.keras.Sequential([], 'doc-reader')
@@ -51,13 +49,23 @@ drQA = None # to be implemented
 class QA(tf.keras.Model):
     def __init__(self):
         super(QA, self).__init__()
+        self.preprocessor = preprocessor
         self.encoder = encoder
         self.decoder = decoder
 
+# models below are for exposing
+# DrQA exam model
 class DrqaModel(QA):
     def __init__(self):
         super().__init__()
         self.drQA = drQA
+
+    def call(self, text):
+        text = self.preprocessor(text)
+        encoded_outputs = self.encoder(text)
+        net = encoded_outputs['seqence_output']
+        net = self.drQA(net)
+        return self.decoder(net)
 
 # final composed chatting model
 class ChatModel(QA):
@@ -68,10 +76,15 @@ class ChatModel(QA):
         self.drQA = drQA
 
     def call(self, text):
-        net = self.encoder(text)
-        intent = self.classifier(net)
+        text = self.preprocessor(text)
+        encoded_outputs = self.encoder(text)
+        pooled_output = encoded_outputs['pooled_output']
+        sequence_output = encoded_outputs['sequence_output']
+        intent = self.classifier(pooled_output)
 
-        net = tf.cond(intent < tf.constant(0.5, dtype=tf.float32),
-            lambda: self.chatter(net), lambda: self.drQA(net))
+        answer = tf.cond(intent < tf.constant(0.5, dtype=tf.float32),
+            lambda: self.chatter(sequence_output), lambda: self.drQA(sequence_output))
+        answer = self.decoder(answer)
+        intent = tf.math.round(intent)
 
-        return self.decoder(net)
+        return [answer, intent]
