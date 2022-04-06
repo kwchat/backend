@@ -33,7 +33,7 @@ text_classifier = tf.keras.Sequential([
 ], 'text-classifier')
 
 # define a dialog model
-dialog_model = tf.keras.Sequential([], 'dialog-model')
+dialoger = tf.keras.Sequential([], 'dialog-model')
 
 # define a document retriever
 docRetriever = tf.keras.Sequential([], 'doc-retriever')
@@ -71,7 +71,7 @@ class ChatModel(QA):
     def __init__(self):
         super().__init__()
         self.classifier = text_classifier
-        self.chatter = dialog_model
+        self.chatter = dialoger
         self.drQA = drQA
 
     def call(self, text):
