@@ -4,6 +4,7 @@ from flask import (
 from flask_cors import CORS
 import models
 import time
+from config import *
 
 app = Flask(__name__)
 CORS(app)
@@ -22,5 +23,5 @@ def index():
         answer['msg'] = "임시 답변"
         return answer
     
-    return redirect('http://127.0.0.1/')
+    return redirect(webserverUrl)
 
