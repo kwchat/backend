@@ -6,42 +6,48 @@ import tensorflow_text as text
 
 ### 모든 모델이 한국어 기준으로 작성되었음 ###
 
-# define a text embedding model
-X = tf.keras.layers.Input(shape=(), dtype=tf.string)
+## define a text embedding model ##
 preprocessor = hub.KerasLayer("https://tfhub.dev/jeongukjae/klue_bert_cased_preprocess/1")
-preprocessor.trainable = False
-net = preprocessor(X)
-
 encoder = hub.KerasLayer("https://tfhub.dev/jeongukjae/klue_bert_cased_L-12_H-768_A-12/1", trainable=True)
-encoder.trainable = True
-encoder_outputs = encoder(net)
+
+embedding_size = 768
+max_seq_length = 128
+
+input_shape = tf.keras.layers.Input(shape=(), dtype=tf.string)
+code_shape = tf.keras.layers.Input(shape=(max_seq_length, embedding_size), dtype=tf.float32)
+output_shape = tf.keras.layers.Input(shape=(), dtype=tf.string)
+
+# get encode tensors
+text_processed = preprocessor(input_shape)
+encoder_outputs = encoder(text_processed)
 pooled_output = encoder_outputs["pooled_output"]      # [batch_size, 768].
 sequence_output = encoder_outputs["sequence_output"]  # [batch_size, seq_length, 768].
 
-embedding_size = 768
-seq_length = 128
 
-# define a text decoder
-net = tf.keras.layers.Input(shape=(seq_length, embedding_size), dtype=tf.float32)
+## define a text decoder ##
 decoder = tf.keras.Sequential([], 'decoder')
 
-# define a sentence intent classifier
+## define a sentence intent classifier ##
 text_classifier = tf.keras.Sequential([
     tf.keras.layers.Dense(16, activation='relu', input_shape=(embedding_size,), dtype=tf.float32),
     tf.keras.layers.Dropout(0.1),
     tf.keras.layers.Dense(1, activation='sigmoid'),
 ], 'text-classifier')
 
-# define a dialog model
+
+## define a dialog model ##
 dialoger = tf.keras.Sequential([], 'dialog-model')
 
-# define a document retriever
+
+## define a document retriever ##
 docRetriever = tf.keras.Sequential([], 'doc-retriever')
 
-# define a document reader
+
+## define a document reader ##
 docReader = tf.keras.Sequential([], 'doc-reader')
 
-# define a DrQA
+
+## define a DrQA ##
 drQA = None # to be implemented
 
 # define a QA interface
@@ -52,7 +58,8 @@ class QA(tf.keras.Model):
         self.encoder = encoder
         self.decoder = decoder
 
-# models below are for exposing
+
+## models below are for exposing ##
 # DrQA exam model
 class DrqaModel(QA):
     def __init__(self):
