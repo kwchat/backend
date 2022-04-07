@@ -14,15 +14,20 @@ embedding_size = 768
 max_seq_length = 128
 
 input_shape = tf.keras.layers.Input(shape=(), dtype=tf.string)
-code_shape = tf.keras.layers.Input(shape=(max_seq_length, embedding_size), dtype=tf.float32)
+code_shape = tf.keras.layers.Input(shape=(None, embedding_size), dtype=tf.float32)
 output_shape = tf.keras.layers.Input(shape=(), dtype=tf.string)
 
 # get encode tensors
-text_processed = preprocessor(input_shape)
-encoder_outputs = encoder(text_processed)
-pooled_output = encoder_outputs["pooled_output"]      # [batch_size, 768].
-sequence_output = encoder_outputs["sequence_output"]  # [batch_size, seq_length, 768].
+def do_encode(text):
+    text_processed = preprocessor(text)
+    encoder_outputs = encoder(text_processed)
+    pooled_output = encoder_outputs["pooled_output"]
+    sequence_output = encoder_outputs["sequence_output"]
+    reduced_sequence = tf.boolean_mask(sequence_output, text_processed['input_mask'])
 
+    return (text_processed, encoder_outputs, pooled_output, sequence_output, reduced_sequence)
+
+text_processed, encoder_outputs, pooled_output, sequence_output, reduced_sequence = do_encode(input_shape)
 
 ## define a text decoder ##
 decoder = tf.keras.Sequential([], 'decoder')
@@ -67,11 +72,10 @@ class DrqaModel(QA):
         self.drQA = drQA
 
     def call(self, text):
-        text = self.preprocessor(text)
-        encoded_outputs = self.encoder(text)
-        net = encoded_outputs['seqence_output']
-        net = self.drQA(net)
-        return self.decoder(net)
+        _, _, _, sequence_output, _ = do_encode(text)
+        answer = self.drQA(sequence_output)
+        answer = self.decoder(answer)
+        return answer
 
 # final composed chatting model
 class ChatModel(QA):
@@ -82,10 +86,7 @@ class ChatModel(QA):
         self.drQA = drQA
 
     def call(self, text):
-        text = self.preprocessor(text)
-        encoded_outputs = self.encoder(text)
-        pooled_output = encoded_outputs['pooled_output']
-        sequence_output = encoded_outputs['sequence_output']
+        _, _, pooled_output, sequence_output, _ = do_encode(text)
         intent = self.classifier(pooled_output)
 
         answer = tf.cond(intent < tf.constant(0.5, dtype=tf.float32),
