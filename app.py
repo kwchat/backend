@@ -2,26 +2,30 @@ from flask import (
     Flask, request, redirect
 )
 from flask_cors import CORS
-import models
+from models import ChatModel
 import time
 from config import *
 
 app = Flask(__name__)
 CORS(app)
+kwchat = ChatModel()
+answerTypes = ['dialog', 'drqa']
 
 @app.route("/", methods=('GET', 'POST'))
 def index():
     if request.method == 'POST':
         data = request.get_json()
         question = data['msg']
-        answer = dict()
         start = time.time()
-        # infer should be here
+        answer = kwchat.predict([question])
         end = time.time()
-        answer['answerType'] = "dialog"
-        answer['elapsedTime'] = end - start
-        answer['msg'] = "임시 답변"
+        answer = [item for (item,) in answer] # unpack
+        answer = {
+            'answerType': answerTypes[int(answer[1])],
+            'elapsedTime': end - start,
+            'msg': answer[0],
+        }
         return answer
     
-    return redirect(webserverUrl)
+    return redirect(webServerUrl)
 

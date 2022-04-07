@@ -1,1 +1,1 @@
-webserverUrl = 'http://127.0.0.1/'
+webServerUrl = 'http://127.0.0.1/'
