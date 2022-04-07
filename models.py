@@ -5,9 +5,10 @@ import tensorflow_hub as hub
 import tensorflow_text as text
 
 ### 모든 모델이 한국어 기준으로 작성되었음 ###
+# Containing Models: bert preprocessor, bert, decoder, text intent classifier, dialog model, DrQA, composed chat model
 
 ## define a text embedding model ##
-preprocessor = hub.KerasLayer("https://tfhub.dev/jeongukjae/klue_bert_cased_preprocess/1")
+preprocessor = hub.KerasLayer("https://tfhub.dev/jeongukjae/klue_bert_cased_preprocess/1", trainable=False)
 encoder = hub.KerasLayer("https://tfhub.dev/jeongukjae/klue_bert_cased_L-12_H-768_A-12/1", trainable=True)
 
 embedding_size = 768
@@ -25,7 +26,7 @@ def do_encode(text):
     sequence_output = encoder_outputs["sequence_output"]
     reduced_sequence = tf.boolean_mask(sequence_output, text_processed['input_mask'])
 
-    return (text_processed, encoder_outputs, pooled_output, sequence_output, reduced_sequence)
+    return text_processed, encoder_outputs, pooled_output, sequence_output, reduced_sequence
 
 text_processed, encoder_outputs, pooled_output, sequence_output, reduced_sequence = do_encode(input_shape)
 
@@ -77,6 +78,18 @@ class DrqaModel(QA):
         answer = self.decoder(answer)
         return answer
 
+# dialog exam model
+class DialogModel(QA):
+    def __init__(self):
+        super().__init__()
+        self.chatter = dialoger
+
+    def call(self, text):
+        _, _, _, sequence_output, _ = do_encode(text)
+        answer = self.chatter(sequence_output)
+        answer = self.decoder(answer)
+        return answer
+
 # final composed chatting model
 class ChatModel(QA):
     def __init__(self):
@@ -92,6 +105,6 @@ class ChatModel(QA):
         answer = tf.cond(intent < tf.constant(0.5, dtype=tf.float32),
             lambda: self.chatter(sequence_output), lambda: self.drQA(sequence_output))
         answer = self.decoder(answer)
-        intent = tf.math.round(intent)
+        intent = tf.math.round(intent) # cast to 0 1
 
         return [answer, intent]
